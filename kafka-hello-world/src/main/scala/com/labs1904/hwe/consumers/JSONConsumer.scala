@@ -1,34 +1,26 @@
 package com.labs1904.hwe.consumers
 
-import com.labs1904.hwe.util.Util.getScramAuthString
-import net.liftweb.json.{DefaultFormats, parse}
-import org.apache.kafka.clients.consumer.{ConsumerConfig, ConsumerRecord, ConsumerRecords, KafkaConsumer}
-import org.apache.kafka.common.serialization.StringDeserializer
+import com.labs1904.hwe.util.Constants._
+import com.labs1904.hwe.util.Util
+import net.liftweb.json.DefaultFormats
+import org.apache.kafka.clients.consumer.{ConsumerRecord, ConsumerRecords, KafkaConsumer}
+import org.slf4j.LoggerFactory
 
 import java.time.Duration
 import java.util
-import java.util.{Properties, UUID}
 
 object JSONConsumer {
-
-  val BootstrapServer : String = "CHANGEME"
-  val Topic: String = "CHANGEME"
-  val username: String = "CHANGEME"
-  val password: String = "CHANGEME"
-  //Use this for Windows
-  val trustStore: String = "src\\main\\resources\\kafka.client.truststore.jks"
-  //Use this for Mac
-  //val trustStore: String = "src/main/resources/kafka.client.truststore.jks"
+  private val logger = LoggerFactory.getLogger(getClass)
 
   implicit val formats: DefaultFormats.type = DefaultFormats
 
   def main(args: Array[String]): Unit = {
     // Create the KafkaConsumer
-    val properties = getProperties(BootstrapServer)
+    val properties = Util.getConsumerProperties(BOOTSTRAP_SERVER)
     val consumer: KafkaConsumer[String, String] = new KafkaConsumer[String, String](properties)
 
     // Subscribe to the topic
-    consumer.subscribe(util.Arrays.asList(Topic))
+    consumer.subscribe(util.Arrays.asList(DEFAULT_TOPIC))
 
     while ( {
       true
@@ -40,8 +32,8 @@ object JSONConsumer {
       records.forEach((record: ConsumerRecord[String, String]) => {
         /*
           // DEBUG Info
-          println(s"Key: ${record.key}. Value: ${record.value}")
-          println(s"Partition: ${record.partition}, Offset ${record.offset}")
+          logger.info(s"Key: ${record.key}. Value: ${record.value}")
+          logger.info(s"Partition: ${record.partition}, Offset ${record.offset}")
         */
 
         /*
@@ -51,25 +43,8 @@ object JSONConsumer {
          */
 
         val message = record.value()
-        println(s"Message Received: $message")
+        logger.info(s"Message Received: $message")
       })
     }
-  }
-
-  def getProperties(bootstrapServer: String): Properties = {
-    // Set Properties to be used for Kafka Consumer
-    val properties = new Properties
-    properties.setProperty(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServer)
-    properties.setProperty(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, classOf[StringDeserializer].getName)
-    properties.setProperty(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, classOf[StringDeserializer].getName)
-    properties.setProperty(ConsumerConfig.GROUP_ID_CONFIG, UUID.randomUUID().toString)
-    properties.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest")
-
-    properties.put("security.protocol", "SASL_SSL")
-    properties.put("sasl.mechanism", "SCRAM-SHA-512")
-    properties.put("ssl.truststore.location", trustStore)
-    properties.put("sasl.jaas.config", getScramAuthString(username, password))
-
-    properties
   }
 }

@@ -1,37 +1,31 @@
 package com.labs1904.hwe.consumers
 
-import com.labs1904.hwe.producers.SimpleProducer
+import com.labs1904.hwe.util.Constants._
 import com.labs1904.hwe.util.Util
-import com.labs1904.hwe.util.Util.getScramAuthString
 import net.liftweb.json.DefaultFormats
-import org.apache.kafka.clients.consumer.{ConsumerConfig, ConsumerRecord, ConsumerRecords, KafkaConsumer}
-import org.apache.kafka.clients.producer.{KafkaProducer, ProducerRecord}
-import org.apache.kafka.common.serialization.StringDeserializer
+import org.apache.kafka.clients.consumer.{ConsumerRecord, ConsumerRecords, KafkaConsumer}
+import org.apache.kafka.clients.producer.KafkaProducer
+import org.slf4j.LoggerFactory
 
 import java.time.Duration
-import java.util.{Arrays, Properties, UUID}
+import java.util.Arrays
 
 object HweConsumer {
-  val BootstrapServer : String = "CHANGEME"
+  private val logger = LoggerFactory.getLogger(getClass)
+
   val consumerTopic: String = "question-1"
   val producerTopic: String = "question-1-output"
-  val username: String = "CHANGEME"
-  val password: String = "CHANGEME"
-  //Use this for Windows
-  val trustStore: String = "src\\main\\resources\\kafka.client.truststore.jks"
-  //Use this for Mac
-  //val trustStore: String = "src/main/resources/kafka.client.truststore.jks"
 
   implicit val formats: DefaultFormats.type = DefaultFormats
 
   def main(args: Array[String]): Unit = {
 
     // Create the KafkaConsumer
-    val consumerProperties = SimpleConsumer.getProperties(BootstrapServer)
+    val consumerProperties = Util.getConsumerProperties(BOOTSTRAP_SERVER)
     val consumer: KafkaConsumer[String, String] = new KafkaConsumer[String, String](consumerProperties)
 
     // Create the KafkaProducer
-    val producerProperties = SimpleProducer.getProperties(BootstrapServer)
+    val producerProperties = Util.getProperties(BOOTSTRAP_SERVER)
     val producer = new KafkaProducer[String, String](producerProperties)
 
     // Subscribe to the topic
@@ -47,7 +41,7 @@ object HweConsumer {
       records.forEach((record: ConsumerRecord[String, String]) => {
         // Retrieve the message from each record
         val message = record.value()
-        println(s"Message Received: $message")
+        logger.info(s"Message Received: $message")
         // TODO: Add business logic here!
 
       })
