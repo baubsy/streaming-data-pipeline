@@ -21,26 +21,27 @@ reword confusing descriptions in a way that makes sense to you.
 #### What problem does Spark help solve? Use a specific use case in your answer 
 * Helpful resource: [Apache Spark Use Cases](https://www.toptal.com/spark/introduction-to-apache-spark)
 * [Overivew of Apache Spark](https://www.youtube.com/watch?v=znBa13Earms&t=42s)
-
+Spreads code that transforms your data across many nodes while being fault tolerant.
 #### What is Apache Spark?
 * Helpful resource: [Spark Overview](https://www.youtube.com/watch?v=ymtq8yjmD9I) 
-
+A framework for distributed computing
 #### What is distributed data processing? How does it relate to Apache Spark?  
 [Apache Spark for Beginners](https://medium.com/@aristo_alex/apache-spark-for-beginners-d3b3791e259e)
-
+Changing/using a lot of data spread across multiple nodes
 #### On the physical side of a spark cluster, you have a driver and executors. Define each and give an example of how they work together to process data
-
+The driver is a like a manager and the executors are its workers. The driver figures out how the tasks should be broken up/what order to run them in and gives the tasks to executors. The executors give the results back to the driver.
 #### Define each and explain how they are different from each other 
 * RDD (Resilient Distributed Dataset)
 * DataFrame
 * DataSet
-
+Datasets contain data that is typed. Dataframes contain datasets in a way similar to tables. RDD's  are a collection of data across nodes that have protections against data loss.
 #### What is a spark transformation?
 [Spark By Examples-Transformations](https://sparkbyexamples.com/apache-spark-rdd/spark-rdd-transformations/)
-
+They apply some operation to the items in the data and returns a new RDD/Dataframe/DataSet
 #### What is a spark action? How do actions differ from transformations? 
-
+Actions return values rather than datasets. Transformations are lazy, they don't happen until an action processes.
 #### What is a partition in spark? Why would you ever need to repartition? 
 [Spark Partitioning](https://sparkbyexamples.com/spark/spark-repartition-vs-coalesce/)
-
+Partitions are a chunk of data. Repartitioning can help increase efficiency by splitting data up across more partitions to run more of the task in parallel.
 #### What was the most fascinating aspect of Spark to you while learning? 
+How much it will handle the nitty gritty details for you and the amount of work that must have gone into the framework for that. 

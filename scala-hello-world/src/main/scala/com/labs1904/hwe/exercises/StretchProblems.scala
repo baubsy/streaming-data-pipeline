@@ -1,5 +1,7 @@
 package com.labs1904.hwe.exercises
 
+import net.liftweb.json.JsonDSL.int2jvalue
+
 import scala.collection.mutable.ListBuffer
 
 object StretchProblems {
@@ -26,7 +28,12 @@ If no larger number can be created, return -1
  */
   def getNextBiggestNumber(i: Integer): Int = {
     //TODO: Implement me!
-    val digits : Int = Math.round(i /10)
+    //how to the scala way
+    val digits : Int = i.toString.length
+    val numArr = ListBuffer[Int]()
+    for( x <- 0 to digits){
+      numArr += Math.floor()
+    }
     println(digits);
     0
   }
