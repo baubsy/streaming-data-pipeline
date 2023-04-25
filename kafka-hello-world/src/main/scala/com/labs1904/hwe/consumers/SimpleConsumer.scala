@@ -21,7 +21,8 @@ object SimpleConsumer {
     val consumer: KafkaConsumer[String, String] = new KafkaConsumer[String, String](properties)
 
     // Subscribe to the topic
-    consumer.subscribe(Arrays.asList(DEFAULT_TOPIC))
+    //consumer.subscribe(Arrays.asList(DEFAULT_TOPIC))
+    consumer.subscribe(Arrays.asList("question-1-output"))
 
     while ( {
       true

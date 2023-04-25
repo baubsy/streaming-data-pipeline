@@ -17,9 +17,9 @@ object WordCountStreamingApp {
   val jobName = "WordCountStreamingApp"
   // TODO: define the schema for parsing data from Kafka
 
-  val bootstrapServer : String = "CHANGEME"
-  val username: String = "CHANGEME"
-  val password: String = "CHANGEME"
+  val bootstrapServer : String = System.getenv("BOOTSTRAP_SERVER")
+  val username: String = System.getenv("USER_NAME")
+  val password: String = System.getenv("PASSWORD")
   val Topic: String = "word-count"
 
   //Use this for Windows
@@ -59,10 +59,15 @@ object WordCountStreamingApp {
       sentences.printSchema
 
       // TODO: implement me
-      //val counts = ???
+      val mappedSentences = sentences.flatMap(sentence => {
+        splitSentenceIntoWords(sentence)
+      })
+      //mappedSentences.show
+      val groupedWords = mappedSentences.groupBy("value")
 
-      val query = sentences.writeStream
-        .outputMode(OutputMode.Append())
+      val counts = groupedWords.count().orderBy(desc("count"))
+      val query = counts.writeStream
+        .outputMode(OutputMode.Complete())
         .format("console")
         .trigger(Trigger.ProcessingTime("5 seconds"))
         .start()
@@ -77,6 +82,11 @@ object WordCountStreamingApp {
     s"""org.apache.kafka.common.security.scram.ScramLoginModule required
    username=\"$username\"
    password=\"$password\";"""
+  }
+
+  def splitSentenceIntoWords(sentence: String): Array[String]  = {
+    val words = sentence.split(" ")
+    words.map(word => word.toLowerCase())
   }
 
 }
