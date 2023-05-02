@@ -31,7 +31,7 @@ object MyApp {
       val putResult = table.put(put)
       val pGet = new Get(Bytes.toBytes("99"))
       val pGetResult = table.get(pGet)
-      logger.debug(pGetResult)
+      logger.debug(Bytes.toString(pGetResult.value))
       //Challenge 3
       val myScan = new Scan().withStartRow(Bytes.toBytes("10000001")).withStopRow(Bytes.toBytes("10006001"))
       val scanResult = table.getScanner(myScan)
