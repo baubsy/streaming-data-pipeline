@@ -13,11 +13,11 @@ object StreamingPipeline {
   lazy val logger: Logger = Logger.getLogger(this.getClass)
   val jobName = "StreamingPipeline"
 
-  val hdfsUrl = "CHANGEME"
-  val bootstrapServers = "CHANGEME"
-  val username = "CHANGEME"
-  val password = "CHANGEME"
-  val hdfsUsername = "CHANGEME" // TODO: set this to your handle
+  val hdfsUrl = System.getenv("HBASE")
+  val bootstrapServers = System.getenv("BOOTSTRAP")
+  val username = System.getenv("USERNAME")
+  val password = System.getenv("PASSWORD")
+  val hdfsUsername = System.getenv("HANDLE")
 
   //Use this for Windows
   val trustStore: String = "src\\main\\resources\\kafka.client.truststore.jks"
@@ -51,7 +51,7 @@ object StreamingPipeline {
 
       // TODO: implement logic here
       val result = ds
-
+      result.printSchema()
       // Write output to console
       val query = result.writeStream
         .outputMode(OutputMode.Append())
