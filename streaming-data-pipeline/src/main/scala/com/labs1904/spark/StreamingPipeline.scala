@@ -20,14 +20,14 @@ object StreamingPipeline {
   val bootstrapServers = System.getenv("BOOTSTRAP")
   val username = System.getenv("USERNAME")
   val password = System.getenv("PASSWORD")
-  val hdfsUsername = "CHANGEME"
+  val hdfsUsername = System.getenv("HANDLE")
 
   //Use this for Windows
-  val trustStore: String = "src\\main\\resources\\kafka.client.truststore.jks"
+  //val trustStore: String = "src\\main\\resources\\kafka.client.truststore.jks"
   //Use this for Mac
   //val trustStore: String = "src/main/resources/kafka.client.truststore.jks"
-  //val trustStore: String = System.getenv("TRUSTSTORE")
-  case class User(user_id: String, mail: String)
+  val trustStore: String = System.getenv("TRUSTSTORE")
+  case class EnrichedReview(user_id: String, mail: String, marketplace: String, review_id: String, product_id: String, product_parent: String, product_title: String, product_category: String, star_rating: String, helpful_votes: String, total_votes: String, vine: String, verified_purchase: String, review_headline: String, review_body: String, review_date: String)
   case class Review(marketplace: String, customer_id: String, review_id: String, product_id: String, product_parent: String, product_title: String, product_category: String, star_rating: String, helpful_votes: String, total_votes: String, vine: String, verified_purchase: String, review_headline: String, review_body: String, review_date: String)
 
   def main(args: Array[String]): Unit = {
@@ -63,21 +63,24 @@ object StreamingPipeline {
 
       val results = result.flatMap(x=> x.split("\t"))
       val reviews = results.map(x=> Review(x(0).toString, x(1).toString, x(2).toString,x(3).toString,x(4).toString,x(5).toString,x(6).toString,x(7).toString,x(8).toString,x(9).toString,x(10).toString,x(11).toString,x(12).toString,x(13).toString,x(14).toString))
-//      val mappedReviews = reviews.mapPartitions(partition=> {
-//        val conf = HBaseConfiguration.create()
-//        conf.set("hbase.zookeeper.quorum", System.getenv("HBASE"))
-//        val connection = ConnectionFactory.createConnection(conf)
-//        val table = connection.getTable(TableName.valueOf("bswyers:users"))
-//
-//        val iter = partition.map(review => {
-//          val get = new Get(Bytes.toBytes(review.customer_id)).addFamily(Bytes.toBytes("f1"))
-//          val result = table.get(get)
-//          User(review.customer_id, Bytes.toString(result.getValue(Bytes.toBytes("f1"), Bytes.toBytes("mail"))))
-//        }).toList.iterator
-//      })
+      //figure out why mapPartitions is overloaded, probably returning wrong
+      val mappedReviews = reviews.mapPartitions(partition=> {
+        val conf = HBaseConfiguration.create()
+        conf.set("hbase.zookeeper.quorum", System.getenv("HBASE"))
+        val connection = ConnectionFactory.createConnection(conf)
+        val table = connection.getTable(TableName.valueOf("bswyers:users"))
 
+        val iter = partition.map(review => {
+          val get = new Get(Bytes.toBytes(review.customer_id)).addFamily(Bytes.toBytes("f1"))
+          val result = table.get(get)
+          EnrichedReview(review.customer_id, Bytes.toString(result.getValue(Bytes.toBytes("f1"), Bytes.toBytes("mail"))), review.marketplace, review.review_id, review.product_id, review.product_parent, review.product_title, review.product_category, review.star_rating, review.helpful_votes, review.total_votes, review.vine, review.verified_purchase, review.review_headline, review.review_body, review.review_date)
+        }).toList.iterator
+
+        connection.close()
+        iter
+      })
       // Write output to console
-      val query = results.writeStream
+      val query = mappedReviews.writeStream
         .outputMode(OutputMode.Append())
         .format("console")
         .option("truncate", false)
