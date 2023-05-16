@@ -16,7 +16,7 @@ object StreamingPipeline {
   lazy val logger: Logger = Logger.getLogger(this.getClass)
   val jobName = "StreamingPipeline"
 
-  val hdfsUrl = "CHANGEME"
+  val hdfsUrl = System.getenv("HDFSURL")
   val bootstrapServers = System.getenv("BOOTSTRAP")
   val username = System.getenv("USERNAME")
   val password = System.getenv("PASSWORD")
@@ -33,11 +33,20 @@ object StreamingPipeline {
   def main(args: Array[String]): Unit = {
 
     try {
+      //for writing to console
       val spark = SparkSession.builder()
         .config("spark.sql.shuffle.partitions", "3")
         .appName(jobName)
         .master("local[*]")
         .getOrCreate()
+      //to write to HDFS
+//    val spark = SparkSession.builder()
+//      .config("spark.sql.shuffle.partitions", "3")
+//      .config("spark.hadoop.dfs.client.use.datanode.hostname", "true")
+//      .config("spark.hadoop.fs.defaultFS", hdfsUrl)
+//      .appName(jobName)
+//      .master("local[*]")
+//      .getOrCreate()
 
       import spark.implicits._
 
@@ -61,9 +70,10 @@ object StreamingPipeline {
       //result.printSchema()
 
 
-      val results = result.flatMap(x=> x.split("\t"))
-      val reviews = results.map(x=> Review(x(0).toString, x(1).toString, x(2).toString,x(3).toString,x(4).toString,x(5).toString,x(6).toString,x(7).toString,x(8).toString,x(9).toString,x(10).toString,x(11).toString,x(12).toString,x(13).toString,x(14).toString))
-      //figure out why mapPartitions is overloaded, probably returning wrong
+      val results = result.flatMap(x=> x.split("\n"))
+      val reviewList = results.flatMap(x=> x.split("\t"))
+      //Not Splitting results into reviews perfectly?
+      val reviews = reviewList.map(x=> Review(x(0).toString, x(1).toString, x(2).toString,x(3).toString,x(4).toString,x(5).toString,x(6).toString,x(7).toString,x(8).toString,x(9).toString,x(10).toString,x(11).toString,x(12).toString,x(13).toString,x(14).toString))
       val mappedReviews = reviews.mapPartitions(partition=> {
         val conf = HBaseConfiguration.create()
         conf.set("hbase.zookeeper.quorum", System.getenv("HBASE"))
@@ -79,8 +89,9 @@ object StreamingPipeline {
         connection.close()
         iter
       })
+
       // Write output to console
-      val query = results.writeStream
+      val query = reviewList.writeStream
         .outputMode(OutputMode.Append())
         .format("console")
         .option("truncate", false)
@@ -95,6 +106,15 @@ object StreamingPipeline {
 //        .option("checkpointLocation", s"/user/${hdfsUsername}/reviews_checkpoint")
 //        .trigger(Trigger.ProcessingTime("5 seconds"))
 //        .start()
+//    val query = mappedReviews.writeStream
+//      .outputMode(OutputMode.Append())
+//      .format("csv")
+//      .option("delimiter", "\t")
+//      .option("path", s"/user/${hdfsUsername}/reviews_csv")
+//      .option("checkpointLocation", s"/user/${hdfsUsername}/reviews_checkpoint")
+//      .partitionBy("star_rating")
+//      .trigger(Trigger.ProcessingTime("5 seconds"))
+//      .start()
       query.awaitTermination()
     } catch {
       case e: Exception => logger.error(s"$jobName error in main", e)
