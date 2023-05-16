@@ -80,7 +80,7 @@ object StreamingPipeline {
         iter
       })
       // Write output to console
-      val query = mappedReviews.writeStream
+      val query = results.writeStream
         .outputMode(OutputMode.Append())
         .format("console")
         .option("truncate", false)
