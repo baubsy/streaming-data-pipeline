@@ -7,6 +7,14 @@ choose to open as a project.
 
 Navigate to MyApp.scala to start editing!
 
+# Lab Setup
+
+Before starting the lab please set the following environment variables:
+ - `HWE_HBASE_ZOOKEEPER_QUORUM` - this value allows the apps to connect to the HBase database.  This is provided by the HWE admins.
+ - `HWE_HBASE_TABLE` - this value is a table specific to each user. The format of it will be `<first letter of first name><last name>:users`.  For example, Kit's table will be `kmenke:users`.
+
+Note that some environments like Windows need to have IntelliJ restarted before the environment variables will be present in the environment (I haven't tested Linux and Mac).
+
 # The Lab
 
 Challenge #1: What is user=10000001 email address? Determine this by using a Get that *only* returns that user's email 

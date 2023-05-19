@@ -5,7 +5,7 @@ import java.nio.file.Paths
 object Constants {
   // TODO: this is configured to use kafka running locally, change it to your cluster
   val BOOTSTRAP_SERVER : String = "CHANGEME"
-  val DEFAULT_TOPIC: String = "hwe-kafka-connection-test"
+  val DEFAULT_TOPIC: String = "connection-test"
   val USERNAME: String = "CHANGEME"
   val PASSWORD: String = "CHANGEME"
   //Use this for Windows
