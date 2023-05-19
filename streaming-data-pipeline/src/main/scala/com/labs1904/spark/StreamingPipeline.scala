@@ -1,7 +1,7 @@
 package com.labs1904.spark
 
 import org.apache.hadoop.hbase.{HBaseConfiguration, TableName}
-import org.apache.hadoop.hbase.client.{ConnectionFactory, Get}
+import org.apache.hadoop.hbase.client.{ConnectionFactory, Get, Scan}
 import org.apache.hadoop.hbase.util.Bytes
 import org.apache.log4j.Logger
 import org.apache.spark.sql.{Dataset, SparkSession}
@@ -27,26 +27,28 @@ object StreamingPipeline {
   //Use this for Mac
   //val trustStore: String = "src/main/resources/kafka.client.truststore.jks"
   val trustStore: String = System.getenv("TRUSTSTORE")
-  case class EnrichedReview(user_id: String, mail: String, marketplace: String, review_id: String, product_id: String, product_parent: String, product_title: String, product_category: String, star_rating: String, helpful_votes: String, total_votes: String, vine: String, verified_purchase: String, review_headline: String, review_body: String, review_date: String)
+
+  case class User(user_id: String, mail: String, birthdate: String, name: String, sex: String, username: String)
+  case class EnrichedReview(user_id: String, mail: String, marketplace: String, review_id: String, product_id: String, product_parent: String, product_title: String, product_category: String, star_rating: String, helpful_votes: String, total_votes: String, vine: String, verified_purchase: String, review_headline: String, review_body: String, review_date: String, birthdate: String, name: String, sex: String, username: String)
   case class Review(marketplace: String, customer_id: String, review_id: String, product_id: String, product_parent: String, product_title: String, product_category: String, star_rating: String, helpful_votes: String, total_votes: String, vine: String, verified_purchase: String, review_headline: String, review_body: String, review_date: String)
 
   def main(args: Array[String]): Unit = {
 
     try {
       //for writing to console
-      val spark = SparkSession.builder()
-        .config("spark.sql.shuffle.partitions", "3")
-        .appName(jobName)
-        .master("local[*]")
-        .getOrCreate()
+//      val spark = SparkSession.builder()
+//        .config("spark.sql.shuffle.partitions", "3")
+//        .appName(jobName)
+//        .master("local[*]")
+//        .getOrCreate()
       //to write to HDFS
-//    val spark = SparkSession.builder()
-//      .config("spark.sql.shuffle.partitions", "3")
-//      .config("spark.hadoop.dfs.client.use.datanode.hostname", "true")
-//      .config("spark.hadoop.fs.defaultFS", hdfsUrl)
-//      .appName(jobName)
-//      .master("local[*]")
-//      .getOrCreate()
+    val spark = SparkSession.builder()
+      .config("spark.sql.shuffle.partitions", "3")
+      .config("spark.hadoop.dfs.client.use.datanode.hostname", "true")
+      .config("spark.hadoop.fs.defaultFS", hdfsUrl)
+      .appName(jobName)
+      .master("local[*]")
+      .getOrCreate()
 
       import spark.implicits._
 
@@ -70,10 +72,12 @@ object StreamingPipeline {
       //result.printSchema()
 
 
-      val results = result.flatMap(x=> x.split("\n"))
-      val reviewList = results.flatMap(x=> x.split("\t"))
+      //val results = result.flatMap(x=> x.split("\n"))
+      val results = result.map(x => x.split('\n'))
+      //val reviewList = results.flatMap(x=> x.split("\t"))
+      val reviewList = results.map(x => x(0).split('\t'))
       //Not Splitting results into reviews perfectly?
-      val reviews = reviewList.map(x=> Review(x(0).toString, x(1).toString, x(2).toString,x(3).toString,x(4).toString,x(5).toString,x(6).toString,x(7).toString,x(8).toString,x(9).toString,x(10).toString,x(11).toString,x(12).toString,x(13).toString,x(14).toString))
+      val reviews = reviewList.map(x=> Review(x(0), x(1), x(2),x(3),x(4),x(5),x(6),x(7),x(8),x(9),x(10),x(11),x(12),x(13),x(14)))
       val mappedReviews = reviews.mapPartitions(partition=> {
         val conf = HBaseConfiguration.create()
         conf.set("hbase.zookeeper.quorum", System.getenv("HBASE"))
@@ -82,21 +86,27 @@ object StreamingPipeline {
 
         val iter = partition.map(review => {
           val get = new Get(Bytes.toBytes(review.customer_id)).addFamily(Bytes.toBytes("f1"))
+//          val debugScan = new Scan().setOneRowLimit()
+//          val scanResult = table.getScanner(debugScan)
+//          val scanList = scanResult.iterator()
+//          scanList.forEachRemaining(x=> logger.debug(x))
           val result = table.get(get)
-          EnrichedReview(review.customer_id, Bytes.toString(result.getValue(Bytes.toBytes("f1"), Bytes.toBytes("mail"))), review.marketplace, review.review_id, review.product_id, review.product_parent, review.product_title, review.product_category, review.star_rating, review.helpful_votes, review.total_votes, review.vine, review.verified_purchase, review.review_headline, review.review_body, review.review_date)
+          //logger.debug(Bytes.toString(result.value))
+          EnrichedReview(review.customer_id, Bytes.toString(result.getValue(Bytes.toBytes("f1"), Bytes.toBytes("mail"))), review.marketplace, review.review_id, review.product_id, review.product_parent, review.product_title, review.product_category, review.star_rating, review.helpful_votes, review.total_votes, review.vine, review.verified_purchase, review.review_headline, review.review_body, review.review_date, Bytes.toString(result.getValue(Bytes.toBytes("f1"), Bytes.toBytes("birthdate"))), Bytes.toString(result.getValue(Bytes.toBytes("f1"), Bytes.toBytes("name"))), Bytes.toString(result.getValue(Bytes.toBytes("f1"), Bytes.toBytes("sex"))), Bytes.toString(result.getValue(Bytes.toBytes("f1"), Bytes.toBytes("username"))))
         }).toList.iterator
 
         connection.close()
         iter
       })
 
+      //mappedReviews.printSchema()
       // Write output to console
-      val query = reviewList.writeStream
-        .outputMode(OutputMode.Append())
-        .format("console")
-        .option("truncate", false)
-        .trigger(Trigger.ProcessingTime("5 seconds"))
-        .start()
+//      val query = mappedReviews.writeStream
+//        .outputMode(OutputMode.Append())
+//        .format("console")
+//        .option("truncate", false)
+//        .trigger(Trigger.ProcessingTime("5 seconds"))
+//        .start()
       //output should be case class, not tuple
       // Write output to HDFS
 //      val query = result.writeStream
@@ -106,15 +116,15 @@ object StreamingPipeline {
 //        .option("checkpointLocation", s"/user/${hdfsUsername}/reviews_checkpoint")
 //        .trigger(Trigger.ProcessingTime("5 seconds"))
 //        .start()
-//    val query = mappedReviews.writeStream
-//      .outputMode(OutputMode.Append())
-//      .format("csv")
-//      .option("delimiter", "\t")
-//      .option("path", s"/user/${hdfsUsername}/reviews_csv")
-//      .option("checkpointLocation", s"/user/${hdfsUsername}/reviews_checkpoint")
-//      .partitionBy("star_rating")
-//      .trigger(Trigger.ProcessingTime("5 seconds"))
-//      .start()
+    val query = mappedReviews.writeStream
+      .outputMode(OutputMode.Append())
+      .format("csv")
+      .option("delimiter", "\t")
+      .option("path", s"/user/${hdfsUsername}/reviews_csv")
+      .option("checkpointLocation", s"/user/${hdfsUsername}/reviews_checkpoint")
+      .partitionBy("star_rating")
+      .trigger(Trigger.ProcessingTime("5 seconds"))
+      .start()
       query.awaitTermination()
     } catch {
       case e: Exception => logger.error(s"$jobName error in main", e)
