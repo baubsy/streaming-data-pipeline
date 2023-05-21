@@ -29,7 +29,7 @@ object StreamingPipeline {
   val trustStore: String = System.getenv("TRUSTSTORE")
 
   case class User(user_id: String, mail: String, birthdate: String, name: String, sex: String, username: String)
-  case class EnrichedReview(user_id: String, mail: String, marketplace: String, review_id: String, product_id: String, product_parent: String, product_title: String, product_category: String, star_rating: String, helpful_votes: String, total_votes: String, vine: String, verified_purchase: String, review_headline: String, review_body: String, review_date: String, birthdate: String, name: String, sex: String, username: String)
+  case class EnrichedReview(user_id: String, mail: String, marketplace: String, review_id: String, product_id: String, product_parent: String, product_title: String, product_category: String, username: String, helpful_votes: String, total_votes: String, vine: String, verified_purchase: String, review_headline: String, review_body: String, review_date: String, birthdate: String, name: String, sex: String, star_rating: String)
   case class Review(marketplace: String, customer_id: String, review_id: String, product_id: String, product_parent: String, product_title: String, product_category: String, star_rating: String, helpful_votes: String, total_votes: String, vine: String, verified_purchase: String, review_headline: String, review_body: String, review_date: String)
 
   def main(args: Array[String]): Unit = {
@@ -92,7 +92,7 @@ object StreamingPipeline {
 //          scanList.forEachRemaining(x=> logger.debug(x))
           val result = table.get(get)
           //logger.debug(Bytes.toString(result.value))
-          EnrichedReview(review.customer_id, Bytes.toString(result.getValue(Bytes.toBytes("f1"), Bytes.toBytes("mail"))), review.marketplace, review.review_id, review.product_id, review.product_parent, review.product_title, review.product_category, review.star_rating, review.helpful_votes, review.total_votes, review.vine, review.verified_purchase, review.review_headline, review.review_body, review.review_date, Bytes.toString(result.getValue(Bytes.toBytes("f1"), Bytes.toBytes("birthdate"))), Bytes.toString(result.getValue(Bytes.toBytes("f1"), Bytes.toBytes("name"))), Bytes.toString(result.getValue(Bytes.toBytes("f1"), Bytes.toBytes("sex"))), Bytes.toString(result.getValue(Bytes.toBytes("f1"), Bytes.toBytes("username"))))
+          EnrichedReview(review.customer_id, Bytes.toString(result.getValue(Bytes.toBytes("f1"), Bytes.toBytes("mail"))), review.marketplace, review.review_id, review.product_id, review.product_parent, review.product_title, review.product_category,Bytes.toString(result.getValue(Bytes.toBytes("f1"), Bytes.toBytes("username"))), review.helpful_votes, review.total_votes, review.vine, review.verified_purchase, review.review_headline, review.review_body, review.review_date, Bytes.toString(result.getValue(Bytes.toBytes("f1"), Bytes.toBytes("birthdate"))), Bytes.toString(result.getValue(Bytes.toBytes("f1"), Bytes.toBytes("name"))), Bytes.toString(result.getValue(Bytes.toBytes("f1"), Bytes.toBytes("sex"))), review.star_rating)
         }).toList.iterator
 
         connection.close()
@@ -109,13 +109,7 @@ object StreamingPipeline {
 //        .start()
       //output should be case class, not tuple
       // Write output to HDFS
-//      val query = result.writeStream
-//        .outputMode(OutputMode.Append())
-//        .format("json")
-//        .option("path", s"/user/${hdfsUsername}/reviews_json")
-//        .option("checkpointLocation", s"/user/${hdfsUsername}/reviews_checkpoint")
-//        .trigger(Trigger.ProcessingTime("5 seconds"))
-//        .start()
+
     val query = mappedReviews.writeStream
       .outputMode(OutputMode.Append())
       .format("csv")
@@ -136,7 +130,5 @@ object StreamingPipeline {
    username=\"$username\"
    password=\"$password\";"""
   }
-//  def stringConverter(review: Dataset[String]) : Review = {
-//    //Review(review(0).toString, review(0).toString, review(0).toString, review(0).toString, review(0).toString, review(0).toString, review(0).toString, review(0).toString, review(0).toString, review(0).toString, review(0).toString, review(0).toString, review(0).toString, review(0).toString, review(0).toString)
-//  }
+
 }
