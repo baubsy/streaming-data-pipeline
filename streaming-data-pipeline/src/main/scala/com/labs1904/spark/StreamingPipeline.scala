@@ -1,7 +1,7 @@
 package com.labs1904.spark
 
 import org.apache.hadoop.hbase.{HBaseConfiguration, TableName}
-import org.apache.hadoop.hbase.client.{ConnectionFactory, Get, Scan}
+import org.apache.hadoop.hbase.client.{ConnectionFactory, Get, Result, Scan}
 import org.apache.hadoop.hbase.util.Bytes
 import org.apache.log4j.Logger
 import org.apache.spark.sql.{Dataset, SparkSession}
@@ -28,9 +28,10 @@ object StreamingPipeline {
   //val trustStore: String = "src/main/resources/kafka.client.truststore.jks"
   val trustStore: String = System.getenv("TRUSTSTORE")
 
-  case class User(user_id: String, mail: String, birthdate: String, name: String, sex: String, username: String)
+  case class User(mail: String, birthdate: String, name: String, sex: String, username: String)
   case class EnrichedReview(user_id: String, mail: String, marketplace: String, review_id: String, product_id: String, product_parent: String, product_title: String, product_category: String, username: String, helpful_votes: String, total_votes: String, vine: String, verified_purchase: String, review_headline: String, review_body: String, review_date: String, birthdate: String, name: String, sex: String, star_rating: String)
-  case class Review(marketplace: String, customer_id: String, review_id: String, product_id: String, product_parent: String, product_title: String, product_category: String, star_rating: String, helpful_votes: String, total_votes: String, vine: String, verified_purchase: String, review_headline: String, review_body: String, review_date: String)
+  case class Review(marketplace: String, customer_id: String, review_id: String, product_id: String, product_parent: String, product_title: String, product_category: String, review_date: String, helpful_votes: String, total_votes: String, vine: String, verified_purchase: String, review_headline: String, review_body: String, star_rating: String)
+  //case class TestReview(user: User, review: Review, star_rating: String);
 
   def main(args: Array[String]): Unit = {
 
@@ -67,18 +68,15 @@ object StreamingPipeline {
         .load()
         .selectExpr("CAST(value AS STRING)").as[String]
 
-      // TODO: implement logic here
       val result = ds
-      //result.printSchema()
 
 
-      //val results = result.flatMap(x=> x.split("\n"))
-      val results = result.map(x => x.split('\n'))
-      //val reviewList = results.flatMap(x=> x.split("\t"))
-      val reviewList = results.map(x => x(0).split('\t'))
-      //Not Splitting results into reviews perfectly?
-      val reviews = reviewList.map(x=> Review(x(0), x(1), x(2),x(3),x(4),x(5),x(6),x(7),x(8),x(9),x(10),x(11),x(12),x(13),x(14)))
-      val mappedReviews = reviews.mapPartitions(partition=> {
+      //val results = result.map(x => x.split('\n'))
+      //val reviewList = results.map(x => x(0).split('\t'))
+      val reviewList = result.map(x=> x.split('\t'))
+      //val reviews = reviewList.map(x=> Review(x(0), x(1), x(2),x(3),x(4),x(5),x(6),x(7),x(8),x(9),x(10),x(11),x(12),x(13),x(14)))
+      val reviews = reviewList.map(x=> reviewBuilder(x))
+      val enrichedReviews = reviews.mapPartitions(partition=> {
         val conf = HBaseConfiguration.create()
         conf.set("hbase.zookeeper.quorum", System.getenv("HBASE"))
         val connection = ConnectionFactory.createConnection(conf)
@@ -91,8 +89,12 @@ object StreamingPipeline {
 //          val scanList = scanResult.iterator()
 //          scanList.forEachRemaining(x=> logger.debug(x))
           val result = table.get(get)
+          val user = userBuilder(result)
+          enrichedReviewBuilder(user, review)
           //logger.debug(Bytes.toString(result.value))
-          EnrichedReview(review.customer_id, Bytes.toString(result.getValue(Bytes.toBytes("f1"), Bytes.toBytes("mail"))), review.marketplace, review.review_id, review.product_id, review.product_parent, review.product_title, review.product_category,Bytes.toString(result.getValue(Bytes.toBytes("f1"), Bytes.toBytes("username"))), review.helpful_votes, review.total_votes, review.vine, review.verified_purchase, review.review_headline, review.review_body, review.review_date, Bytes.toString(result.getValue(Bytes.toBytes("f1"), Bytes.toBytes("birthdate"))), Bytes.toString(result.getValue(Bytes.toBytes("f1"), Bytes.toBytes("name"))), Bytes.toString(result.getValue(Bytes.toBytes("f1"), Bytes.toBytes("sex"))), review.star_rating)
+          //EnrichedReview(review.customer_id, Bytes.toString(result.getValue(Bytes.toBytes("f1"), Bytes.toBytes("mail"))), review.marketplace, review.review_id, review.product_id, review.product_parent, review.product_title, review.product_category,Bytes.toString(result.getValue(Bytes.toBytes("f1"), Bytes.toBytes("username"))), review.helpful_votes, review.total_votes, review.vine, review.verified_purchase, review.review_headline, review.review_body, review.review_date, Bytes.toString(result.getValue(Bytes.toBytes("f1"), Bytes.toBytes("birthdate"))), Bytes.toString(result.getValue(Bytes.toBytes("f1"), Bytes.toBytes("name"))), Bytes.toString(result.getValue(Bytes.toBytes("f1"), Bytes.toBytes("sex"))), review.star_rating)
+          //TestReview looks nicer in code but would also require changing format spark writes to.
+          //TestReview(userBuilder(result), review, review.star_rating)
         }).toList.iterator
 
         connection.close()
@@ -101,7 +103,7 @@ object StreamingPipeline {
 
       //mappedReviews.printSchema()
       // Write output to console
-//      val query = mappedReviews.writeStream
+//      val query = enrichedReviews.writeStream
 //        .outputMode(OutputMode.Append())
 //        .format("console")
 //        .option("truncate", false)
@@ -110,12 +112,12 @@ object StreamingPipeline {
       //output should be case class, not tuple
       // Write output to HDFS
 
-    val query = mappedReviews.writeStream
+    val query = enrichedReviews.writeStream
       .outputMode(OutputMode.Append())
       .format("csv")
       .option("delimiter", "\t")
-      .option("path", s"/user/${hdfsUsername}/reviews_csv")
-      .option("checkpointLocation", s"/user/${hdfsUsername}/reviews_checkpoint")
+      .option("path", s"/user/${hdfsUsername}/reviews_csv2")
+      .option("checkpointLocation", s"/user/${hdfsUsername}/reviews_checkpoint2")
       .partitionBy("star_rating")
       .trigger(Trigger.ProcessingTime("5 seconds"))
       .start()
@@ -131,4 +133,58 @@ object StreamingPipeline {
    password=\"$password\";"""
   }
 
+  def reviewBuilder(review: Array[String]): Review = {
+    Review(
+      marketplace = review(0),
+      customer_id = review(1),
+      review_id = review(2),
+      product_id = review(3),
+      product_parent = review(4),
+      product_title = review(5),
+      product_category = review(6),
+      star_rating = review(7),
+      helpful_votes = review(8),
+      total_votes = review(9),
+      vine = review(10),
+      verified_purchase = review(11),
+      review_headline = review(12),
+      review_body = review(13),
+      review_date = review(14)
+    )
+  }
+
+  def userBuilder(result : Result): User = {
+    User(
+      mail = Bytes.toString(result.getValue(Bytes.toBytes("f1"), Bytes.toBytes("mail"))),
+      birthdate = Bytes.toString(result.getValue(Bytes.toBytes("f1"), Bytes.toBytes("birthdate"))),
+      name = Bytes.toString(result.getValue(Bytes.toBytes("f1"), Bytes.toBytes("name"))),
+      sex = Bytes.toString(result.getValue(Bytes.toBytes("f1"), Bytes.toBytes("sex"))),
+      username = Bytes.toString(result.getValue(Bytes.toBytes("f1"), Bytes.toBytes("username")))
+    )
+  }
+
+  def enrichedReviewBuilder(user: User, review: Review): EnrichedReview = {
+    EnrichedReview(
+      marketplace = review.marketplace,
+      user_id = review.customer_id,
+      review_id = review.review_id,
+      product_id = review.product_id,
+      product_parent = review.product_parent,
+      product_title = review.product_title,
+      product_category = review.product_category,
+      star_rating = review.star_rating,
+      helpful_votes = review.helpful_votes,
+      total_votes = review.total_votes,
+      vine = review.vine,
+      verified_purchase = review.verified_purchase,
+      review_headline = review.review_headline,
+      review_body = review.review_body,
+      review_date = review.review_date,
+      mail = user.mail,
+      birthdate = user.birthdate,
+      name = user.name,
+      sex = user.sex,
+      username = user.username
+    )
+  }
 }
